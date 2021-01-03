@@ -53,8 +53,9 @@ process run_dfast {
     output:
     tuple val(sampleID), file("dfast_output/*")
     tuple val(sampleID), file("dfast_output/genome.gbk") into dfast2phispy
-    tuple val(sampleID), file("dfast_output/genome.fna") into dfast2phigaro
     tuple val(sampleID), file("dfast_output/genome.gbk") into dfast2update
+    tuple val(sampleID), file("dfast_output/genome.fna") into dfast2phigaro
+    tuple val(sampleID), file("dfast_output/genome.fna") into dfast2CRT
     tuple val(sampleID), file("dfast_output/cds.fna") into cds2abricate
     tuple val(sampleID), file("protein_LOCUS.faa") into protein2vogdb
     tuple val(sampleID), file("protein_LOCUS.faa") into protein2pfam
@@ -307,6 +308,27 @@ process extract_prophages {
 
     """
     extract_prophages.py -g $prophages -f $params.flank_len -o ${sampleID}_prophages
+    """
+}
+
+
+process CRT {
+    tag "$sampleID"
+    publishDir "$params.outdir/$sampleID/p03_CRISPR"
+    publishDir "$params.report/$sampleID", pattern: "${sampleID}_CRISPR.txt"
+    conda '/home/viro/jinlong.ru/conda3/envs/binfo2'
+
+    input:
+    set val(sampleID), file(draft_genome) from dfast2CRT
+
+    output:
+    tuple val(sampleID), file("${sampleID}_CRISPR.txt")
+
+    when:
+    params.mode == 'genome' || params.mode == "all"
+
+    """
+    crt crt $draft_genome ${sampleID}_CRISPR.txt
     """
 }
 
