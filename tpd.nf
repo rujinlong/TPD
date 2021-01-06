@@ -312,23 +312,24 @@ process extract_prophages {
 }
 
 
-process CRT {
+process predict_CRISPR {
     tag "$sampleID"
     publishDir "$params.outdir/$sampleID/p03_CRISPR"
-    publishDir "$params.report/$sampleID", pattern: "${sampleID}_CRISPR.txt"
+    publishDir "$params.report/$sampleID", pattern: "${sampleID}_CRISPR*"
     conda '/home/viro/jinlong.ru/conda3/envs/binfo2'
 
     input:
     set val(sampleID), file(draft_genome) from dfast2CRT
 
     output:
-    tuple val(sampleID), file("${sampleID}_CRISPR.txt")
+    tuple val(sampleID), file("${sampleID}_CRISPR_*")
 
     when:
     params.mode == 'genome' || params.mode == "all"
 
     """
-    crt crt $draft_genome ${sampleID}_CRISPR.txt
+    crt crt $draft_genome ${sampleID}_CRISPR_CRT.txt
+    cctyper $draft_genome ${sampleID}_CRISPR_cctyper.txt
     """
 }
 
