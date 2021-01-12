@@ -79,7 +79,7 @@ process viral_annotation_VOGDB {
     label "medium"
     publishDir "$params.outdir/$sampleID/p03_vanno_VOGDB"
     publishDir "$params.report/$sampleID"
-    conda '/home/viro/jinlong.ru/conda3/envs/binfo2'
+    conda '/home/viro/jinlong.ru/conda3/envs/tpd'
 
     input:
     set val(sampleID), file(protein) from protein2vogdb
@@ -103,7 +103,7 @@ process viral_annotation_PFAM {
     label "medium"
     publishDir "$params.outdir/$sampleID/p03_vanno_PFAM"
     publishDir "$params.report/$sampleID"
-    conda '/home/viro/jinlong.ru/conda3/envs/binfo2'
+    conda '/home/viro/jinlong.ru/conda3/envs/tpd'
 
     input:
     set val(sampleID), file(protein) from protein2pfam
@@ -127,7 +127,7 @@ process viral_annotation_pVOG {
     label "medium"
     publishDir "$params.outdir/$sampleID/p03_vanno_pVOG"
     publishDir "$params.report/$sampleID"
-    conda '/home/viro/jinlong.ru/conda3/envs/binfo2'
+    conda '/home/viro/jinlong.ru/conda3/envs/tpd'
 
     input:
     set val(sampleID), file(protein) from protein2pvog
@@ -152,7 +152,7 @@ process viral_annotation_KEGG {
     label "medium"
     publishDir "$params.outdir/$sampleID/p03_vanno_KEGG"
     publishDir "$params.report/$sampleID"
-    conda '/home/viro/jinlong.ru/conda3/envs/binfo2'
+    conda '/home/viro/jinlong.ru/conda3/envs/tpd'
 
     input:
     set val(sampleID), file(protein) from protein2kegg
@@ -248,7 +248,7 @@ process update_gbk_cds_annotation {
     tag "$sampleID"
     label "small"
     publishDir "$params.outdir/$sampleID/p05_update_gbk_cds_annotation"
-    conda '/home/viro/jinlong.ru/conda3/envs/binfo2'
+    conda '/home/viro/jinlong.ru/conda3/envs/tpd'
 
     input:
     set val(sampleID), file(phispy_gbk), file(dfast_gbk), file(pvog), file(vogdb), file(pfam), file(kegg), file(abricate) from phispy2update.join(dfast2update).join(vanno_pvog).join(vanno_vogdb).join(vanno_pfam).join(vanno_kegg).join(arg2update)
@@ -273,7 +273,7 @@ process update_gbk_prophage {
     tag "$sampleID"
     publishDir "$params.outdir/$sampleID/p06_update_gbk_prophage"
     publishDir "$params.report/$sampleID", pattern: "*.gbk"
-    conda '/home/viro/jinlong.ru/conda3/envs/binfo2'
+    conda '/home/viro/jinlong.ru/conda3/envs/tpd'
 
     input:
     set val(sampleID), file(prophage_phigaro), file(gbk) from coord_phigaro.join(update_prophage)
@@ -295,7 +295,7 @@ process extract_prophages {
     tag "$sampleID"
     publishDir "$params.outdir/$sampleID/p07_prophages"
     publishDir "$params.report/$sampleID", pattern: "${sampleID}_prophages.*"
-    conda '/home/viro/jinlong.ru/conda3/envs/binfo2'
+    conda '/home/viro/jinlong.ru/conda3/envs/tpd'
 
     input:
     set val(sampleID), file(prophages) from prophages_ch
@@ -307,7 +307,33 @@ process extract_prophages {
     params.mode == 'genome' || params.mode == "all"
 
     """
-    extract_prophages.py -g $prophages -f $params.flank_len -o ${sampleID}_prophages
+    extract_prophages.py -s $sampleID -g $prophages -f $params.flank_len -o ${sampleID}_prophages
+    """
+}
+
+
+process prophage_clustering {
+    publishDir "$params.outdir/$sampleID/p08_prophage_clusters"
+    publishDir "$params.report/$sampleID", pattern: "clusters_reps.*"
+    conda '/home/viro/jinlong.ru/conda3/envs/tpd'
+
+    input:
+    file(prophages_all) from prophages_ch
+
+    output:
+    file("clusters_reps.fna")
+
+    when:
+    params.mode == 'genome' || params.mode == "all"
+
+    """
+    cat ${prophages_all} > prophages_all.fna
+    sortgenome.pl --genomes-file prophages_all.fna --sortedgenomes-file sorted.fna
+    gclust -both -nuc -threads $task.cpus -memiden 4 sorted.fna > clusters.txt
+    pretty_cdhit.py -i clusters.txt -o clusters.map
+    cut -f1 clusters.map | sed '1d' | sort -u > clusters.list
+    seqkit grep -f clusters.list prophages_all.fna > clusters_reps.fna
+    # todo: jpnb
     """
 }
 
@@ -316,7 +342,7 @@ process predict_CRISPR {
     tag "$sampleID"
     publishDir "$params.outdir/$sampleID/p03_CRISPR"
     publishDir "$params.report/$sampleID", pattern: "${sampleID}_CRISPR*"
-    conda '/home/viro/jinlong.ru/conda3/envs/binfo2'
+    conda '/home/viro/jinlong.ru/conda3/envs/tpd'
 
     input:
     set val(sampleID), file(draft_genome) from dfast2CRT
