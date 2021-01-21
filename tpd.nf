@@ -13,7 +13,7 @@ if (params.mode == "all") {
         label "small"
         publishDir "$params.outdir/$sampleID/p01_RagTag"
         publishDir "$params.report/$sampleID", pattern: "*.stats"
-        conda '/home/viro/jinlong.ru/conda3/envs/ragtag'
+        conda '/home/viro/jinlong.ru/conda3/envs/tpd'
 
         input:
         set val(sampleID), file(rawseqs), file(ref_fna), file(ref_gbk) from contigs_ch
@@ -45,7 +45,7 @@ process run_dfast {
     label "medium"
     publishDir "$params.outdir/$sampleID/p02_dfast"
     publishDir "$params.report/$sampleID", pattern: "statistics.txt"
-    conda '/home/viro/jinlong.ru/conda3/envs/dfast'
+    conda '/home/viro/jinlong.ru/conda3/envss/tpd'
 
     input:
     set val(sampleID), file(genome), file(ref_gbk) from genome_ch
@@ -175,7 +175,7 @@ process cds_anno_ARG {
     label "small"
     publishDir "$params.outdir/$sampleID/p03_anno_ARG"
     publishDir "$params.report/$sampleID"
-    conda '/home/viro/jinlong.ru/conda3/envs/binfo-ng'
+    conda '/home/viro/jinlong.ru/conda3/envs/tpd'
 
     input:
     set val(sampleID), file(cds) from cds2abricate
@@ -202,7 +202,7 @@ process predict_prophage_phispy {
     tag "$sampleID"
     label "big"
     publishDir "$params.outdir/$sampleID/p04_prophage_phispy"
-    conda '/home/viro/jinlong.ru/conda3/envs/phispy'
+    conda '/home/viro/jinlong.ru/conda3/envs/tpd'
 
     input:
     set val(sampleID), file(genome) from dfast2phispy
@@ -226,7 +226,7 @@ process predict_prophage_phigaro {
     tag "$sampleID"
     label "big"
     publishDir "$params.outdir/$sampleID/p04_prophage_phigaro"
-    conda '/home/viro/jinlong.ru/conda3/envs/phigaro_env'
+    conda '/home/viro/jinlong.ru/conda3/envs/tpd'
 
     input:
     set val(sampleID), file(genome) from dfast2phigaro
