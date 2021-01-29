@@ -42,7 +42,7 @@ process run_dfast {
     path("dfast_output/genome.gbk"), emit: draft_gbk
     path("dfast_output/genome.fna"), emit: draft_genome_fna
     path("dfast_output/cds.fna"), emit: cds_ch
-    path("protein_LOCUS.faa"), emit: protein_locus into protein2pfam
+    path("protein_LOCUS.faa"), emit: protein_locus
     path("statistics.txt")
 
     when:
@@ -204,7 +204,7 @@ process predict_prophage_phigaro {
 
     """
     phigaro -f $genome -c $params.cfg_phigaro -e html tsv gff bed -o phigaro --not-open -t $task.cpus -m basic -d
-    sed 1d phigaro.tsv | cut -f1-3 > tmp2.tsv
+    sed 1d phigaro/genome.phigaro.tsv | cut -f1-3 > tmp2.tsv
     add_column.py -i tmp2.tsv -m phigaro -o prophage_phigaro.tsv
     """
 }
@@ -291,14 +291,18 @@ process predict_CRISPR {
     params.mode == 'genome' || params.mode == "all"
 
     """
-    crt crt $draft_genome ${params.prefix}_CRISPR_CRT.txt
-    cctyper $draft_genome ${params.prefix}_CRISPR_cctyper.txt
+    crt crt $draft_genome_fna ${params.prefix}_CRISPR_CRT.txt
+    cctyper $draft_genome_fna ${params.prefix}_CRISPR_cctyper.txt
     """
 }
 
 
 workflow {
-    run_dfast(params.ref_fna, params.ref_gbk)
+    contigs = channel.fromPath(params.contigs)
+    ref_fna = channel.fromPath(params.ref_fna)
+    ref_gbk = channel.fromPath(params.ref_gbk)
+    run_RagTag(contigs, ref_fna, ref_gbk)
+    run_dfast(run_RagTag.out.genome_ch, ref_gbk)
 
     viral_annotation_VOGDB(run_dfast.out.protein_locus)
     viral_annotation_PFAM(run_dfast.out.protein_locus)
@@ -309,12 +313,12 @@ workflow {
     predict_prophage_phispy(run_dfast.out.draft_gbk)
     predict_prophage_phigaro(run_dfast.out.draft_genome_fna)
 
-    update_gbk_cds_annotation(predict_prophage_phispy.out.phispy_gbk, run_dfast.out.draft_gbk, viral_annotation_pVOG.out.viral_annotation_pVOG, viral_annotation_VOGDB.out.vanno_vogdb, viral_annotation_PFAM.out.vanno_pfam, viral_annotation_KEGG.out.vanno_kegg, cds_anno_ARG.out.arg2update)
+    update_gbk_cds_annotation(predict_prophage_phispy.out.phispy_gbk, run_dfast.out.draft_gbk, viral_annotation_pVOG.out.vanno_pvog, viral_annotation_VOGDB.out.vanno_vogdb, viral_annotation_PFAM.out.vanno_pfam, viral_annotation_KEGG.out.vanno_kegg, cds_anno_ARG.out.arg2update)
     
     if( params.extra_prophage_coord == "false" )
-        tsvs = predict_prophage_phispy.out.phispy_tsv.concat(predict_prophage_phigaro.out.phigaro_tsv)
+        tsvs = predict_prophage_phispy.out.phispy_tsv.mix(predict_prophage_phigaro.out.phigaro_tsv)
     else
-        tsvs = predict_prophage_phispy.out.phispy_tsv.concat(predict_prophage_phigaro.out.phigaro_tsv, params.extra_prophage_coord)
+        tsvs = channel.fromPath(params.extra_prophage_coord).mix(predict_prophage_phispy.out.phispy_tsv, predict_prophage_phigaro.out.phigaro_tsv)
 
     update_gbk_prophage(update_gbk_cds_annotation.out.update_prophage, tsvs)
 
