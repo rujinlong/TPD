@@ -1,67 +1,49 @@
 #!/usr/bin/env nextflow
 // Usage: nextflow run pipa.nf --fids fids.csv --mode "all|genome" -resume
 
-if (params.mode == "all") {
-    Channel
-        .fromPath(params.fids)
-        .splitCsv(header:true)
-        .map { row -> tuple(row.sampleID, file(row.rawseqs), file(row.ref_fna), file(row.ref_gbk)) }
-        .set { contigs_ch }
+nextflow.enable.dsl=2
 
-    process run_RagTag {
-        tag "$sampleID"
-        label "small"
-        publishDir "$params.outdir/$sampleID/p01_RagTag"
-        publishDir "$params.report/$sampleID", pattern: "*.stats"
-        conda '/home/viro/jinlong.ru/conda3/envs/tpd'
+process run_RagTag {
+    label "small"
+    publishDir "$params.outdir/$params.prefix/p01_RagTag"
+    publishDir "$params.report/$params.prefix", pattern: "*.stats"
 
-        input:
-        set val(sampleID), file(rawseqs), file(ref_fna), file(ref_gbk) from contigs_ch
+    input:
+    path(rawseqs) 
+    path(ref_fna)
+    path(ref_gbk)
 
-        output:
-        tuple val(sampleID), file('ragtag_output/*') 
-        tuple val(sampleID), file('ragtag_output/ragtag.scaffolds.fasta'),  file(ref_gbk) into genome_ch
-        tuple val(sampleID), file('*.stats') 
+    output:
+    path('ragtag_output/*') 
+    path('ragtag_output/ragtag.scaffolds.fasta'), emit: genome_ch
+    path('*.stats') 
 
-        when:
-        params.mode == "all"
+    when:
+    params.mode == "all"
 
-        """
-        ragtag.py scaffold $ref_fna $rawseqs -t $task.cpus -o ragtag_output
-        ln -s ragtag_output/*.stats .
-        """
-    }
-} else {
-    Channel
-        .fromPath(params.fids)
-        .splitCsv(header:true)
-        .map { row -> tuple(row.sampleID, file(row.rawseqs), file(row.ref_gbk)) }
-        .set { genome_ch }
+    """
+    ragtag.py scaffold $ref_fna $rawseqs -t $task.cpus -o ragtag_output
+    ln -s ragtag_output/*.stats .
+    """
 }
 
 
 process run_dfast {
-    tag "$sampleID"
     label "medium"
-    publishDir "$params.outdir/$sampleID/p02_dfast"
-    publishDir "$params.report/$sampleID", pattern: "statistics.txt"
-    conda '/home/viro/jinlong.ru/conda3/envss/tpd'
+    publishDir "$params.outdir/$params.prefix/p02_dfast"
+    publishDir "$params.report/$params.prefix", pattern: "statistics.txt"
 
     input:
-    set val(sampleID), file(genome), file(ref_gbk) from genome_ch
+    path(genome)
+    path(ref_gbk)
 
     output:
-    tuple val(sampleID), file("dfast_output/*")
-    tuple val(sampleID), file("dfast_output/genome.gbk") into dfast2phispy
-    tuple val(sampleID), file("dfast_output/genome.gbk") into dfast2update
-    tuple val(sampleID), file("dfast_output/genome.fna") into dfast2phigaro
-    tuple val(sampleID), file("dfast_output/genome.fna") into dfast2CRT
-    tuple val(sampleID), file("dfast_output/cds.fna") into cds2abricate
-    tuple val(sampleID), file("protein_LOCUS.faa") into protein2vogdb
-    tuple val(sampleID), file("protein_LOCUS.faa") into protein2pfam
-    tuple val(sampleID), file("protein_LOCUS.faa") into protein2pvog
-    tuple val(sampleID), file("protein_LOCUS.faa") into protein2kegg
-    tuple val(sampleID), file("statistics.txt")
+    file("dfast_output/*")
+    path("dfast_output/genome.gbk"), emit: draft_gbk
+    path("dfast_output/genome.fna"), emit: draft_genome_fna
+    path("dfast_output/cds.fna"), emit: cds_ch
+    path("protein_LOCUS.faa"), emit: protein_locus into protein2pfam
+    path("statistics.txt")
 
     when:
     params.mode == 'genome' || params.mode == "all"
@@ -75,17 +57,15 @@ process run_dfast {
 
 
 process viral_annotation_VOGDB {
-    tag "$sampleID"
     label "medium"
-    publishDir "$params.outdir/$sampleID/p03_vanno_VOGDB"
-    publishDir "$params.report/$sampleID"
-    conda '/home/viro/jinlong.ru/conda3/envs/tpd'
+    publishDir "$params.outdir/$params.prefix/p03_vanno_VOGDB"
+    publishDir "$params.report/$params.prefix"
 
     input:
-    set val(sampleID), file(protein) from protein2vogdb
+    path(protein)
 
     output:
-    tuple val(sampleID), file("anno_VOGDB.tsv") into vanno_vogdb
+    path("anno_VOGDB.tsv"), emit: vanno_vogdb
 
     when:
     params.mode == 'genome' || params.mode == "all"
@@ -97,19 +77,16 @@ process viral_annotation_VOGDB {
     """
 }
 
-
 process viral_annotation_PFAM {
-    tag "$sampleID"
     label "medium"
-    publishDir "$params.outdir/$sampleID/p03_vanno_PFAM"
-    publishDir "$params.report/$sampleID"
-    conda '/home/viro/jinlong.ru/conda3/envs/tpd'
+    publishDir "$params.outdir/$params.prefix/p03_vanno_PFAM"
+    publishDir "$params.report/$params.prefix"
 
     input:
-    set val(sampleID), file(protein) from protein2pfam
+    path(protein)
 
     output:
-    tuple val(sampleID), file("anno_PFAM.tsv") into vanno_pfam
+    path("anno_PFAM.tsv"), emit: vanno_pfam
 
     when:
     params.mode == 'genome' || params.mode == "all"
@@ -121,19 +98,16 @@ process viral_annotation_PFAM {
     """
 }
 
-
 process viral_annotation_pVOG {
-    tag "$sampleID"
     label "medium"
-    publishDir "$params.outdir/$sampleID/p03_vanno_pVOG"
-    publishDir "$params.report/$sampleID"
-    conda '/home/viro/jinlong.ru/conda3/envs/tpd'
+    publishDir "$params.outdir/$params.prefix/p03_vanno_pVOG"
+    publishDir "$params.report/$params.prefix"
 
     input:
-    set val(sampleID), file(protein) from protein2pvog
+    path(protein)
 
     output:
-    tuple val(sampleID), file("anno_pVOG.tsv") into vanno_pvog
+    path("anno_pVOG.tsv"), emit: vanno_pvog
 
     when:
     params.mode == 'genome' || params.mode == "all"
@@ -146,19 +120,16 @@ process viral_annotation_pVOG {
     """
 }
 
-
 process viral_annotation_KEGG {
-    tag "$sampleID"
     label "medium"
-    publishDir "$params.outdir/$sampleID/p03_vanno_KEGG"
-    publishDir "$params.report/$sampleID"
-    conda '/home/viro/jinlong.ru/conda3/envs/tpd'
+    publishDir "$params.outdir/$params.prefix/p03_vanno_KEGG"
+    publishDir "$params.report/$params.prefix"
 
     input:
-    set val(sampleID), file(protein) from protein2kegg
+    path(protein)
 
     output:
-    tuple val(sampleID), file("anno_KEGG.tsv") into vanno_kegg
+    path("anno_KEGG.tsv"), emit: vanno_kegg
 
     when:
     params.mode == 'genome' || params.mode == "all"
@@ -171,17 +142,15 @@ process viral_annotation_KEGG {
 }
 
 process cds_anno_ARG {
-    tag "$sampleID"
     label "small"
-    publishDir "$params.outdir/$sampleID/p03_anno_ARG"
-    publishDir "$params.report/$sampleID"
-    conda '/home/viro/jinlong.ru/conda3/envs/tpd'
+    publishDir "$params.outdir/$params.prefix/p03_anno_ARG"
+    publishDir "$params.report/$params.prefix"
 
     input:
-    set val(sampleID), file(cds) from cds2abricate
+    path(cds)
 
     output:
-    tuple val(sampleID), file("anno_abricate.tsv") into arg2update
+    path("anno_abricate.tsv"), emit: arg2update
 
     when:
     params.mode == 'genome' || params.mode == "all"
@@ -196,21 +165,17 @@ process cds_anno_ARG {
     """
 }
 
-
-
 process predict_prophage_phispy {
-    tag "$sampleID"
     label "big"
-    publishDir "$params.outdir/$sampleID/p04_prophage_phispy"
-    conda '/home/viro/jinlong.ru/conda3/envs/tpd'
+    publishDir "$params.outdir/$params.prefix/p04_prophage_phispy"
 
     input:
-    set val(sampleID), file(genome) from dfast2phispy
+    path(genome)
 
     output:
-    tuple val(sampleID), file("out_phispy/*")
-    tuple val(sampleID), file("out_phispy/prophage.tsv") into coord_phispy
-    tuple val(sampleID), file("phispy.gbk") into phispy2update
+    path("out_phispy/*")
+    path("prophage_phispy.tsv"), emit: phispy_tsv
+    path("phispy.gbk"), emit: phispy_gbk
 
     when:
     params.mode == 'genome' || params.mode == "all"
@@ -218,43 +183,47 @@ process predict_prophage_phispy {
     """
     PhiSpy.py $genome -o out_phispy --phmms $params.db_phispy --threads $task.cpus --color --output_choice 31
     merge_two_gbks.py -r $genome -a out_phispy/genome.gbk -o phispy.gbk
+    sed 1d prophage.tsv | cut -f2-4 > tmp2.tsv
+    add_column.py -i tmp2.tsv -m phispy -o prophage_phispy.tsv
     """
 }
 
-
 process predict_prophage_phigaro {
-    tag "$sampleID"
     label "big"
-    publishDir "$params.outdir/$sampleID/p04_prophage_phigaro"
-    conda '/home/viro/jinlong.ru/conda3/envs/tpd'
+    publishDir "$params.outdir/$params.prefix/p04_prophage_phigaro"
 
     input:
-    set val(sampleID), file(genome) from dfast2phigaro
+    path(genome)
 
     output:
-    tuple val(sampleID), file("phigaro*")
-    tuple val(sampleID), file("phigaro.tsv") into coord_phigaro
+    path("phigaro*")
+    path("prophage_phigaro.tsv"), emit: phigaro_tsv
 
     when:
     params.mode == 'genome' || params.mode == "all"
 
     """
     phigaro -f $genome -c $params.cfg_phigaro -e html tsv gff bed -o phigaro --not-open -t $task.cpus -m basic -d
+    sed 1d phigaro.tsv | cut -f1-3 > tmp2.tsv
+    add_column.py -i tmp2.tsv -m phigaro -o prophage_phigaro.tsv
     """
 }
 
-
 process update_gbk_cds_annotation {
-    tag "$sampleID"
     label "small"
-    publishDir "$params.outdir/$sampleID/p05_update_gbk_cds_annotation"
-    conda '/home/viro/jinlong.ru/conda3/envs/tpd'
+    publishDir "$params.outdir/$params.prefix/p05_update_gbk_cds_annotation"
 
     input:
-    set val(sampleID), file(phispy_gbk), file(dfast_gbk), file(pvog), file(vogdb), file(pfam), file(kegg), file(abricate) from phispy2update.join(dfast2update).join(vanno_pvog).join(vanno_vogdb).join(vanno_pfam).join(vanno_kegg).join(arg2update)
+    path(phispy_gbk)
+    path(dfast_gbk)
+    path(pvog)
+    path(vogdb)
+    path(pfam)
+    path(kegg)
+    path(abricate) 
 
     output:
-    tuple val(sampleID), file("${sampleID}_cds_anno.gbk") into update_prophage
+    path("${params.prefix}_cds_anno.gbk"), emit: update_prophage
 
     when:
     params.mode == 'genome' || params.mode == "all"
@@ -264,104 +233,94 @@ process update_gbk_cds_annotation {
     update_gbk_cds_annotation.py -g t1.gbk -a $vogdb -o t2.gbk -d VOGDB
     update_gbk_cds_annotation.py -g t2.gbk -a $pfam -o t3.gbk -d PFAM
     update_gbk_cds_annotation.py -g t3.gbk -a $kegg -o t4.gbk -d KEGG
-    update_gbk_cds_annotation.py -g t4.gbk -a $abricate -o ${sampleID}_cds_anno.gbk -d abricate
+    update_gbk_cds_annotation.py -g t4.gbk -a $abricate -o ${params.prefix}_cds_anno.gbk -d abricate
     """
 }
 
-
 process update_gbk_prophage {
-    tag "$sampleID"
-    publishDir "$params.outdir/$sampleID/p06_update_gbk_prophage"
-    publishDir "$params.report/$sampleID", pattern: "*.gbk"
-    conda '/home/viro/jinlong.ru/conda3/envs/tpd'
+    publishDir "$params.outdir/$params.prefix/p06_update_gbk_prophage"
+    publishDir "$params.report/$params.prefix", pattern: "*.gbk"
 
     input:
-    set val(sampleID), file(prophage_phigaro), file(gbk) from coord_phigaro.join(update_prophage)
+    path(gbk)
+    path(tsvs)
 
     output:
-    tuple val(sampleID), file("${sampleID}_long.gbk") into prophages_ch
-    tuple val(sampleID), file("${sampleID}.gbk")
+    path("${params.prefix}_long.gbk"), emit: prophages_ch
+    path("${params.prefix}.gbk")
 
     when:
     params.mode == 'genome' || params.mode == "all"
 
     """
-    update_gbk_prophage.py -g $gbk -i $prophage_phigaro -o ${sampleID}.gbk
-    filter_contig_length.py -g ${sampleID}.gbk -m $params.contig_minlen -o ${sampleID}_long
+    cat $tsvs > prophages.tsv
+    add_prophage_to_gbk.py -g $gbk -p prophages.tsv -o ${params.prefix}.gbk
+    filter_contig_length.py -g ${params.prefix}.gbk -m $params.contig_minlen -o ${params.prefix}_long
     """
 }
 
 process extract_prophages {
-    tag "$sampleID"
-    publishDir "$params.outdir/$sampleID/p07_prophages"
-    publishDir "$params.report/$sampleID", pattern: "${sampleID}_prophages.*"
-    conda '/home/viro/jinlong.ru/conda3/envs/tpd'
+    publishDir "$params.outdir/$params.prefix/p07_prophages"
+    publishDir "$params.report/$params.prefix", pattern: "${params.prefix}_prophages.*"
 
     input:
-    set val(sampleID), file(prophages) from prophages_ch
+    path(prophages)
 
     output:
-    tuple val(sampleID), file("${sampleID}_prophages.*")
+    path("${params.prefix}_prophages.*")
 
     when:
     params.mode == 'genome' || params.mode == "all"
 
     """
-    extract_prophages.py -s $sampleID -g $prophages -f $params.flank_len -o ${sampleID}_prophages
+    extract_prophages.py -s $params.prefix -g $prophages -f $params.flank_len -o ${params.prefix}_prophages
     """
 }
-
-
-process prophage_clustering {
-    publishDir "$params.outdir/$sampleID/p08_prophage_clusters"
-    publishDir "$params.report/$sampleID", pattern: "clusters_reps.*"
-    conda '/home/viro/jinlong.ru/conda3/envs/tpd'
-
-    input:
-    file(prophages_all) from prophages_ch
-
-    output:
-    file("clusters_reps.fna")
-
-    when:
-    params.mode == 'genome' || params.mode == "all"
-
-    """
-    cat ${prophages_all} > prophages_all.fna
-    sortgenome.pl --genomes-file prophages_all.fna --sortedgenomes-file sorted.fna
-    gclust -both -nuc -threads $task.cpus -memiden 4 sorted.fna > clusters.txt
-    pretty_cdhit.py -i clusters.txt -o clusters.map
-    cut -f1 clusters.map | sed '1d' | sort -u > clusters.list
-    seqkit grep -f clusters.list prophages_all.fna > clusters_reps.fna
-    # todo: jpnb
-    """
-}
-
 
 process predict_CRISPR {
-    tag "$sampleID"
-    publishDir "$params.outdir/$sampleID/p03_CRISPR"
-    publishDir "$params.report/$sampleID", pattern: "${sampleID}_CRISPR*"
-    conda '/home/viro/jinlong.ru/conda3/envs/tpd'
+    publishDir "$params.outdir/$params.prefix/p03_CRISPR"
+    publishDir "$params.report/$params.prefix"
 
     input:
-    set val(sampleID), file(draft_genome) from dfast2CRT
+    path(draft_genome_fna)
 
     output:
-    tuple val(sampleID), file("${sampleID}_CRISPR_*")
+    path("${params.prefix}_CRISPR_*")
 
     when:
     params.mode == 'genome' || params.mode == "all"
 
     """
-    crt crt $draft_genome ${sampleID}_CRISPR_CRT.txt
-    cctyper $draft_genome ${sampleID}_CRISPR_cctyper.txt
+    crt crt $draft_genome ${params.prefix}_CRISPR_CRT.txt
+    cctyper $draft_genome ${params.prefix}_CRISPR_cctyper.txt
     """
 }
 
 
-workflow.onComplete { 
-    println ( workflow.success ? "Done!" : "Oops .. something went wrong" )
+workflow {
+    run_dfast(params.ref_fna, params.ref_gbk)
+
+    viral_annotation_VOGDB(run_dfast.out.protein_locus)
+    viral_annotation_PFAM(run_dfast.out.protein_locus)
+    viral_annotation_pVOG(run_dfast.out.protein_locus)
+    viral_annotation_KEGG(run_dfast.out.protein_locus)
+    cds_anno_ARG(run_dfast.out.cds_ch)
+
+    predict_prophage_phispy(run_dfast.out.draft_gbk)
+    predict_prophage_phigaro(run_dfast.out.draft_genome_fna)
+
+    update_gbk_cds_annotation(predict_prophage_phispy.out.phispy_gbk, run_dfast.out.draft_gbk, viral_annotation_pVOG.out.viral_annotation_pVOG, viral_annotation_VOGDB.out.vanno_vogdb, viral_annotation_PFAM.out.vanno_pfam, viral_annotation_KEGG.out.vanno_kegg, cds_anno_ARG.out.arg2update)
+    
+    if( params.extra_prophage_coord == "false" )
+        tsvs = predict_prophage_phispy.out.phispy_tsv.concat(predict_prophage_phigaro.out.phigaro_tsv)
+    else
+        tsvs = predict_prophage_phispy.out.phispy_tsv.concat(predict_prophage_phigaro.out.phigaro_tsv, params.extra_prophage_coord)
+
+    update_gbk_prophage(update_gbk_cds_annotation.out.update_prophage, tsvs)
+
+    extract_prophages(update_gbk_prophage.out.prophages_ch)
+    predict_CRISPR(run_dfast.out.draft_genome_fna)
 }
+
 
 
