@@ -1,6 +1,5 @@
 #!/usr/bin/env nextflow
-// Usage: nextflow run pipa.nf --fids fids.csv --mode "all|genome" -resume
-// Usage: nextflow run tpd.nf -profile hpc_slurm --mode "all" -resume
+// Usage: nextflow run tpd.nf -profile hpc_slurm --mode "all" --datadir data -resume
 
 nextflow.enable.dsl=2
 
@@ -13,7 +12,6 @@ process run_RagTag {
     input:
     val(sampleID) 
     path(ref_fna)
-    path(ref_gbk)
 
     output:
     tuple val(sampleID), path('ragtag_output/*') 
@@ -316,7 +314,7 @@ workflow {
     sampleIDs = channel.fromPath(data).map { it.toString().split("/")[-1].split("_")[0] }.unique()
     ref_fna = params.ref_fna
     ref_gbk = params.ref_gbk
-    run_RagTag(sampleIDs, ref_fna, ref_gbk)
+    run_RagTag(sampleIDs, ref_fna)
     run_dfast(run_RagTag.out.genome_ch, ref_gbk)
 
     viral_annotation_VOGDB(run_dfast.out.protein_locus)
