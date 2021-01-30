@@ -9,8 +9,11 @@ def extract_prophage(sample_id, rec, prophage_feature, flank_length):
     end = prophage_feature.location.end + flank_length
     length = abs(start-end)
     prophage = rec[start:end]
-    prophage.id = "{}_{}_len{}_{}-{}".format(sample_id, prophage_feature.qualifiers['ID'][0], str(length), start, end)
-    prophage.name = rec.id
+    if not prophage.id.startswith(sample_id):
+        prophage.id = prophage_feature.qualifiers['ID'][0]
+    else:
+        prophage.id = "{}_{}_len{}_{}-{}".format(prophage.id, prophage_feature.qualifiers['ID'][0], str(length), start, end)
+    prophage.name = prophage.id
     prophage.type = "prophage"
     return prophage
 
@@ -25,8 +28,8 @@ def main(sample_id, gbk, flank_length, fout_prefix, prophage_type_name):
     gbk_recs = list(SeqIO.parse(gbk, format="genbank"))
     prophages = []
     for rec in gbk_recs:
-        if not rec.id.startswith(sample_id):
-            rec.id = "{}_{}".format(sample_id, rec.id)
+        # if not rec.id.startswith(sample_id):
+        #     rec.id = "{}_{}".format(sample_id, rec.id)
             # rec.name = rec.id
         prophage_features = [x for x in rec.features if x.type==prophage_type_name]
         for pf in prophage_features:

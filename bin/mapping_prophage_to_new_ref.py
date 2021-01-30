@@ -34,7 +34,11 @@ def main(fref, fprophage, fout):
             if len(aln) > 0:
                 ref_start = min([x.ref_start for x in aln])
                 ref_end = max([x.ref_end for x in aln])
-                alns.append([ref.id, ref_start, ref_end, qry.id])
+                mapped_length = abs(ref_end-ref_start)
+                query_length = len(qry)
+                # Most region of query sequence should be mapped to reference genome
+                if mapped_length/query_length > 0.7:
+                    alns.append([ref.id, ref_start, ref_end, qry.id])
     
     df = pd.DataFrame(alns)
     df.to_csv(fout, index=False, header=False, sep='\t')

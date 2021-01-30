@@ -267,10 +267,12 @@ process update_gbk_prophage {
     params.mode == 'genome' || params.mode == "all"
 
     """
-    cat $tsv_phispy $tsv_phigaro > prophages.tsv
-    old_prophage="${baseDir}/data/${sampleID}_prophage.tsv"
+    awk 'FNR==1{}{print}' $tsv_phispy $tsv_phigaro > prophages.tsv
+    old_prophage="${params.datadir}/${sampleID}_old.gbk"
     if [ -e \${old_prophage} ];then
-        cat \${old_prophage} >> prophages.tsv
+        extract_prophages.py -s $sampleID -g ${params.datadir}/${sampleID}_old.gbk -f 0 -o ${sampleID}_prophage -p $params.old_prophage_feature_name
+	    mapping_prophage_to_new_ref.py -r $gbk -p ${sampleID}_prophage.fasta -o ${sampleID}_prophage.tsv
+        awk 'FNR==1{}{print}' ${sampleID}_prophage.tsv >> prophages.tsv
     fi
     add_prophage_to_gbk.py -g $gbk -p prophages.tsv -o ${sampleID}.gbk
     filter_contig_length.py -g ${sampleID}.gbk -m $params.contig_minlen -o ${sampleID}_long
@@ -292,7 +294,7 @@ process extract_prophages {
     params.mode == 'genome' || params.mode == "all"
 
     """
-    extract_prophages.py -s $sampleID -g $prophages -f $params.flank_len -o ${sampleID}_prophages
+    extract_prophages.py -s $sampleID -g $prophages -f $params.flank_len -o ${sampleID}_prophages -p misc_feature
     """
 }
 
@@ -318,8 +320,8 @@ process predict_CRISPR {
 
 
 workflow {
-    sampleIDs = channel.fromPath(params.data).map { it.toString().split("/")[-1].split("_")[0] }.unique()
-    sampleIDs.view()
+    data = "${params.datadir}/*_*"
+    sampleIDs = channel.fromPath(data).map { it.toString().split("/")[-1].split("_")[0] }.unique()
     ref_fna = params.ref_fna
     ref_gbk = params.ref_gbk
     run_RagTag(sampleIDs, ref_fna, ref_gbk)
