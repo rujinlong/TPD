@@ -2,6 +2,7 @@
 
 import click
 from Bio import SeqIO
+import pandas as pd
 from pymummer import coords_file, alignment, nucmer
 
 
@@ -34,9 +35,9 @@ def main(fref, fprophage, fout):
                 ref_start = min([x.ref_start for x in aln])
                 ref_end = max([x.ref_end for x in aln])
                 alns.append([ref.id, ref_start, ref_end, qry.id])
-    with open(fout, "w") as fh:
-        fh.writelines(['\t'.join(x) for x in alns])
-
+    
+    df = pd.DataFrame(alns)
+    df.to_csv(fout, index=False, header=False, sep='\t')
 
 if __name__ == '__main__':
     main()
