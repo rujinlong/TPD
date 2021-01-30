@@ -226,12 +226,7 @@ process update_gbk_cds_annotation {
     publishDir "$params.outdir/$sampleID/p05_update_gbk_cds_annotation"
 
     input:
-    tuple val(sampleID), path(dfast_gbk)
-    tuple val(sampleID), path(pvog)
-    tuple val(sampleID), path(vogdb)
-    tuple val(sampleID), path(pfam)
-    tuple val(sampleID), path(kegg)
-    tuple val(sampleID), path(abricate) 
+    tuple val(sampleID), path(dfast_gbk), path(pvog), path(vogdb), path(pfam), path(kegg), path(abricate) 
 
     output:
     tuple val(sampleID), path("${sampleID}_cds_anno.gbk"), emit: update_prophage
@@ -254,10 +249,7 @@ process update_gbk_prophage {
     publishDir "$params.report/$sampleID", pattern: "*.gbk"
 
     input:
-    val(sampleID)
-    tuple val(sampleID), path(gbk)
-    tuple val(sampleID), path(tsv_phispy)
-    tuple val(sampleID), path(tsv_phigaro)
+    tuple val(sampleID), path(gbk), path(tsv_phispy), path(tsv_phigaro)
 
     output:
     tuple val(sampleID), path("${sampleID}_long.gbk"), emit: prophages_ch
@@ -336,8 +328,8 @@ workflow {
     predict_prophage_phispy(run_dfast.out.draft_gbk)
     predict_prophage_phigaro(run_dfast.out.draft_genome_fna)
 
-    update_gbk_cds_annotation(run_dfast.out.draft_gbk, viral_annotation_pVOG.out.vanno_pvog, viral_annotation_VOGDB.out.vanno_vogdb, viral_annotation_PFAM.out.vanno_pfam, viral_annotation_KEGG.out.vanno_kegg, cds_anno_ARG.out.arg2update)
-    update_gbk_prophage(sampleIDs, update_gbk_cds_annotation.out.update_prophage, predict_prophage_phispy.out.phispy_tsv, predict_prophage_phigaro.out.phigaro_tsv)
+    update_gbk_cds_annotation(run_dfast.out.draft_gbk.join(viral_annotation_pVOG.out.vanno_pvog, by:0).join(viral_annotation_VOGDB.out.vanno_vogdb, by:0).join(viral_annotation_PFAM.out.vanno_pfam, by:0).join(viral_annotation_KEGG.out.vanno_kegg, by:0).join(cds_anno_ARG.out.arg2update, by:0))
+    update_gbk_prophage(update_gbk_cds_annotation.out.update_prophage.join(predict_prophage_phispy.out.phispy_tsv, by:0).join(predict_prophage_phigaro.out.phigaro_tsv, by:0))
 
     extract_prophages(update_gbk_prophage.out.prophages_ch)
     predict_CRISPR(run_dfast.out.draft_genome_fna)
