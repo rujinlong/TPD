@@ -3,63 +3,31 @@
 
 nextflow.enable.dsl=2
 
-process run_RagTag {
+process extract_seqs_from_gbk {
     tag "$sampleID"
-    label "small"
-    publishDir "$params.outdir/$sampleID/p01_RagTag"
-    publishDir "$params.report/$sampleID", pattern: "*.stats"
+    publishDir "$params.outdir/$sampleID/p01_extract_seqs"
+    publishDir "$params.report/$sampleID", pattern: "${sampleID}_*"
 
     input:
-    tuple val(sampleID), path(ref_fna)
+    tuple val(sampleID), path(gbk)
 
     output:
-    tuple val(sampleID), path('ragtag_output/*') 
-    tuple val(sampleID), path("${sampleID}_1k.fna"), emit: genome_ch
-    tuple val(sampleID), path('*.stats') 
+    tuple val(sampleID), path("${sampleID}_genome.fasta"), emit: genome_ch
+    tuple val(sampleID), path("${sampleID}_gene.fna"), emit: gene_ch
+    tuple val(sampleID), path("${sampleID}_protein.faa"), emit: protein_ch
 
     when:
     params.mode == "all"
 
     """
-    rawseqs="${baseDir}/data/${sampleID}_scaffolds.fna"
-    ragtag.py scaffold $ref_fna \$rawseqs -t $task.cpus -o ragtag_output
-    ln -s ragtag_output/*.stats .
-    sed "s/^>/>${sampleID}_/" ragtag_output/ragtag.scaffolds.fasta | sed 's/ /_/g' > ${sampleID}.fna
-    seqkit seq -m 1000 ${sampleID}.fna > ${sampleID}_1k.fna
-    """
-}
-
-process run_dfast {
-    tag "$sampleID"
-    label "medium"
-    publishDir "$params.outdir/$sampleID/p02_dfast"
-    publishDir "$params.report/$sampleID", pattern: "statistics.txt"
-
-    input:
-    tuple val(sampleID), path(genome), path(ref_gbk)
-
-    output:
-    path("dfast_output/*")
-    tuple val(sampleID), path("dfast_output/genome.gbk"), emit: draft_gbk
-    tuple val(sampleID), path("dfast_output/genome.fna"), emit: draft_genome_fna
-    tuple val(sampleID), path("dfast_output/cds.fna"), emit: cds_ch
-    tuple val(sampleID), path("protein_LOCUS.faa"), emit: protein_locus
-    path("statistics.txt")
-
-    when:
-    params.mode == 'genome' || params.mode == "all"
-
-    """
-    dfast --genome ${genome} -o dfast_output --use_original_name t --cpu $task.cpus --minimum_length 30 --references ${ref_gbk}
-    sed 's/>.*|LOCUS_/>LOCUS_/' dfast_output/protein.faa > protein_LOCUS.faa
-    ln -s dfast_output/statistics.txt .
+    extract_CDS_from_gbk.py -i $gbk -o $sampleID
     """
 }
 
 process viral_annotation_VOGDB {
     tag "$sampleID"
     label "medium"
-    publishDir "$params.outdir/$sampleID/p03_vanno_VOGDB"
+    publishDir "$params.outdir/$sampleID/p02_vanno_VOGDB"
     publishDir "$params.report/$sampleID"
 
     input:
@@ -69,7 +37,7 @@ process viral_annotation_VOGDB {
     tuple val(sampleID), path("anno_VOGDB.tsv"), emit: vanno_vogdb
 
     when:
-    params.mode == 'genome' || params.mode == "all"
+    params.mode == "all"
 
     """
     hmmsearch --tblout hit.hmmtbl --noali -T 40 --cpu $task.cpus -o hit_temp.txt $params.db_VOGDB $protein
@@ -81,7 +49,7 @@ process viral_annotation_VOGDB {
 process viral_annotation_PFAM {
     tag "$sampleID"
     label "medium"
-    publishDir "$params.outdir/$sampleID/p03_vanno_PFAM"
+    publishDir "$params.outdir/$sampleID/p02_vanno_PFAM"
     publishDir "$params.report/$sampleID"
 
     input:
@@ -91,7 +59,7 @@ process viral_annotation_PFAM {
     tuple val(sampleID), path("anno_PFAM.tsv"), emit: vanno_pfam
 
     when:
-    params.mode == 'genome' || params.mode == "all"
+    params.mode == "all"
 
     """
     hmmsearch --tblout hit.hmmtbl --noali -T 40 --cpu $task.cpus -o hit_temp.txt $params.db_PFAM $protein
@@ -103,7 +71,7 @@ process viral_annotation_PFAM {
 process viral_annotation_pVOG {
     tag "$sampleID"
     label "medium"
-    publishDir "$params.outdir/$sampleID/p03_vanno_pVOG"
+    publishDir "$params.outdir/$sampleID/p02_vanno_pVOG"
     publishDir "$params.report/$sampleID"
 
     input:
@@ -113,7 +81,7 @@ process viral_annotation_pVOG {
     tuple val(sampleID), path("anno_pVOG.tsv"), emit: vanno_pvog
 
     when:
-    params.mode == 'genome' || params.mode == "all"
+    params.mode == "all"
 
     """
     db=pVOG
@@ -126,7 +94,7 @@ process viral_annotation_pVOG {
 process viral_annotation_KEGG {
     tag "$sampleID"
     label "medium"
-    publishDir "$params.outdir/$sampleID/p03_vanno_KEGG"
+    publishDir "$params.outdir/$sampleID/p02_vanno_KEGG"
     publishDir "$params.report/$sampleID"
 
     input:
@@ -136,7 +104,7 @@ process viral_annotation_KEGG {
     tuple val(sampleID), path("anno_KEGG.tsv"), emit: vanno_kegg
 
     when:
-    params.mode == 'genome' || params.mode == "all"
+    params.mode == "all"
 
     """
     hmmsearch --tblout hit.hmmtbl --noali -T 40 --cpu $task.cpus -o hit_temp.txt $params.db_KEGG $protein
@@ -148,7 +116,7 @@ process viral_annotation_KEGG {
 process cds_anno_ARG {
     tag "$sampleID"
     label "small"
-    publishDir "$params.outdir/$sampleID/p03_anno_ARG"
+    publishDir "$params.outdir/$sampleID/p02_anno_ARG"
     publishDir "$params.report/$sampleID"
 
     input:
@@ -158,7 +126,7 @@ process cds_anno_ARG {
     tuple val(sampleID), path("anno_abricate.tsv"), emit: arg2update
 
     when:
-    params.mode == 'genome' || params.mode == "all"
+    params.mode == "all"
 
     """
     for abrdb in argannot card ecoh ncbi plasmidfinder resfinder vfdb;do
@@ -173,10 +141,10 @@ process cds_anno_ARG {
 process predict_prophage_phispy {
     tag "$sampleID"
     label "big"
-    publishDir "$params.outdir/$sampleID/p04_prophage_phispy"
+    publishDir "$params.outdir/$sampleID/p03_prophage_phispy"
 
     input:
-    tuple val(sampleID), path(genome)
+    tuple val(sampleID), path(gbk)
 
     output:
     path("out_phispy/*")
@@ -184,11 +152,12 @@ process predict_prophage_phispy {
     tuple val(sampleID), path("phispy.gbk"), emit: phispy_gbk
 
     when:
-    params.mode == 'genome' || params.mode == "all"
+    params.mode == "all"
 
     """
-    PhiSpy.py $genome -o out_phispy --phmms $params.db_phispy --threads $task.cpus --color --output_choice 31
-    merge_two_gbks.py -r $genome -a out_phispy/genome.gbk -o phispy.gbk
+    ln -s $gbk genome.gbk
+    PhiSpy.py genome.gbk -o out_phispy --phmms $params.db_phispy --threads $task.cpus --color --output_choice 31
+    merge_two_gbks.py -r genome.gbk -a out_phispy/genome.gbk -o phispy.gbk
     sed 1d out_phispy/prophage.tsv | cut -f2-4 > tmp2.tsv
     add_column.py -i tmp2.tsv -m phispy -o prophage_phispy.tsv
     """
@@ -197,7 +166,7 @@ process predict_prophage_phispy {
 process predict_prophage_phigaro {
     tag "$sampleID"
     label "big"
-    publishDir "$params.outdir/$sampleID/p04_prophage_phigaro"
+    publishDir "$params.outdir/$sampleID/p03_prophage_phigaro"
 
     input:
     tuple val(sampleID), path(genome)
@@ -210,7 +179,8 @@ process predict_prophage_phigaro {
     params.mode == 'genome' || params.mode == "all"
 
     """
-    phigaro -f $genome -c $params.cfg_phigaro -e html tsv gff bed -o phigaro --not-open -t $task.cpus -m basic -d
+    ln -s $genome genome.fasta
+    phigaro -f genome.fasta -c $params.cfg_phigaro -e html tsv gff bed -o phigaro --not-open -t $task.cpus -m basic -d
     sed 1d phigaro/genome.phigaro.tsv | cut -f1-3 > tmp2.tsv
     add_column.py -i tmp2.tsv -m phigaro -o prophage_phigaro.tsv
     """
@@ -219,7 +189,7 @@ process predict_prophage_phigaro {
 process update_gbk_cds_annotation {
     tag "$sampleID"
     label "small"
-    publishDir "$params.outdir/$sampleID/p05_update_gbk_cds_annotation"
+    publishDir "$params.outdir/$sampleID/p04_update_gbk_cds_annotation"
 
     input:
     tuple val(sampleID), path(dfast_gbk), path(pvog), path(vogdb), path(pfam), path(kegg), path(abricate) 
@@ -241,7 +211,8 @@ process update_gbk_cds_annotation {
 
 process update_gbk_prophage {
     tag "$sampleID"
-    publishDir "$params.outdir/$sampleID/p06_update_gbk_prophage"
+    label "small"
+    publishDir "$params.outdir/$sampleID/p05_update_gbk_prophage"
     publishDir "$params.report/$sampleID", pattern: "*.gbk"
 
     input:
@@ -273,7 +244,8 @@ process update_gbk_prophage {
 
 process extract_prophages {
     tag "$sampleID"
-    publishDir "$params.outdir/$sampleID/p07_prophages"
+    label "small"
+    publishDir "$params.outdir/$sampleID/p06_prophages"
     publishDir "$params.report/$sampleID", pattern: "${sampleID}_prophages.*"
 
     input:
@@ -292,6 +264,7 @@ process extract_prophages {
 
 process predict_CRISPR {
     tag "$sampleID"
+    label "small"
     publishDir "$params.outdir/$sampleID/p03_CRISPR"
     publishDir "$params.report/$sampleID"
 
@@ -312,27 +285,23 @@ process predict_CRISPR {
 
 
 workflow {
-    data = "${params.datadir}/*_*"
-    sampleIDs = channel.fromPath(data).map { it.toString().split("/")[-1].split("_")[0] }.unique()
-    ref_fna = channel.fromPath(params.ref_fna)
-    ref_gbk = channel.fromPath(params.ref_gbk)
-    run_RagTag(sampleIDs.combine(ref_fna))
-    run_dfast(run_RagTag.out.genome_ch.combine(ref_gbk))
+    data = "${params.datadir}/*.gbk"
+    samples = channel.fromPath(data).map { [it.toString().split("/")[-1].replaceAll(/.gbk$/, ""), it] }.unique()
+    extract_seqs_from_gbk(samples)
+    viral_annotation_VOGDB(extract_seqs_from_gbk.out.protein_ch)
+    viral_annotation_pVOG(extract_seqs_from_gbk.out.protein_ch)
+    viral_annotation_PFAM(extract_seqs_from_gbk.out.protein_ch)
+    viral_annotation_KEGG(extract_seqs_from_gbk.out.protein_ch)
+    cds_anno_ARG(extract_seqs_from_gbk.out.gene_ch)
 
-    viral_annotation_VOGDB(run_dfast.out.protein_locus)
-    viral_annotation_PFAM(run_dfast.out.protein_locus)
-    viral_annotation_pVOG(run_dfast.out.protein_locus)
-    viral_annotation_KEGG(run_dfast.out.protein_locus)
-    cds_anno_ARG(run_dfast.out.cds_ch)
+    predict_prophage_phispy(samples)
+    predict_prophage_phigaro(extract_seqs_from_gbk.out.genome_ch)
 
-    predict_prophage_phispy(run_dfast.out.draft_gbk)
-    predict_prophage_phigaro(run_dfast.out.draft_genome_fna)
-
-    update_gbk_cds_annotation(run_dfast.out.draft_gbk.join(viral_annotation_pVOG.out.vanno_pvog, by:0).join(viral_annotation_VOGDB.out.vanno_vogdb, by:0).join(viral_annotation_PFAM.out.vanno_pfam, by:0).join(viral_annotation_KEGG.out.vanno_kegg, by:0).join(cds_anno_ARG.out.arg2update, by:0))
+    update_gbk_cds_annotation(samples.join(viral_annotation_pVOG.out.vanno_pvog, by:0).join(viral_annotation_VOGDB.out.vanno_vogdb, by:0).join(viral_annotation_PFAM.out.vanno_pfam, by:0).join(viral_annotation_KEGG.out.vanno_kegg, by:0).join(cds_anno_ARG.out.arg2update, by:0))
     update_gbk_prophage(update_gbk_cds_annotation.out.update_prophage.join(predict_prophage_phispy.out.phispy_tsv, by:0).join(predict_prophage_phigaro.out.phigaro_tsv, by:0))
 
     extract_prophages(update_gbk_prophage.out.prophages_ch)
-    predict_CRISPR(run_dfast.out.draft_genome_fna)
+    predict_CRISPR(extract_seqs_from_gbk.out.genome_ch)
 }
 
 

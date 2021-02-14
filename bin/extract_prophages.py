@@ -5,12 +5,17 @@ from Bio import SeqIO
 
 
 def extract_prophage(sample_id, rec, prophage_feature, flank_length):
-    start = prophage_feature.location.start - flank_length
-    end = prophage_feature.location.end + flank_length
+    start = prophage_feature.location.start - flank_length - 1
+    end = prophage_feature.location.end + flank_length - 1
+    if start < 0:
+        start = 0
+    if end >= len(rec):
+        end = len(rec)-1
     length = abs(start-end)
     prophage = rec[start:end]
     if not prophage.id.startswith(sample_id):
-        prophage.id = prophage_feature.qualifiers['ID'][0]
+        # prophage.id = prophage_feature.qualifiers['ID'][0]
+        prophage.id = "{}_{}_len{}_{}-{}".format(prophage.id, prophage_feature.qualifiers['ID'][0], str(length), start, end)
     else:
         prophage.id = "{}_{}_len{}_{}-{}".format(prophage.id, prophage_feature.qualifiers['ID'][0], str(length), start, end)
     prophage.name = prophage.id
@@ -33,8 +38,12 @@ def main(sample_id, gbk, flank_length, fout_prefix, prophage_type_name):
             # rec.name = rec.id
         prophage_features = [x for x in rec.features if x.type==prophage_type_name]
         for pf in prophage_features:
-            prophage = extract_prophage(sample_id, rec, pf, flank_length)
-            prophages.append(prophage)
+            try:
+                pf.qualifiers.get('ID')
+                prophage = extract_prophage(sample_id, rec, pf, flank_length)
+                prophages.append(prophage)
+            except:
+                continue
     
     with open("{}.gbk".format(fout_prefix), "w") as fh:
         SeqIO.write(prophages, fh, "genbank")
