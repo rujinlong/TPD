@@ -8,7 +8,7 @@ import pandas as pd
 def add_prophage(record, prophage_loc):
     start_pos = SeqFeature.ExactPosition(prophage_loc['start'])
     end_pos = SeqFeature.ExactPosition(prophage_loc['end'])
-    feature_location = SeqFeature.FeatureLocation(start_pos, end_pos, strand=1)
+    feature_location = SeqFeature.FeatureLocation(start_pos-1, end_pos, strand=1)
     qualifiers = {"ID": prophage_loc['prophage_id'], "note": "Prophage"}
 
     new_feature = SeqFeature.SeqFeature(feature_location, type="misc_feature", qualifiers=qualifiers)

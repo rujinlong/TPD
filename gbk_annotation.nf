@@ -192,7 +192,7 @@ process update_gbk_cds_annotation {
     publishDir "$params.outdir/$sampleID/p04_update_gbk_cds_annotation"
 
     input:
-    tuple val(sampleID), path(dfast_gbk), path(pvog), path(vogdb), path(pfam), path(kegg), path(abricate) 
+    tuple val(sampleID), path(original_gbk), path(pvog), path(vogdb), path(pfam), path(kegg), path(abricate) 
 
     output:
     tuple val(sampleID), path("${sampleID}_cds_anno.gbk"), emit: update_prophage
@@ -201,7 +201,7 @@ process update_gbk_cds_annotation {
     params.mode == 'genome' || params.mode == "all"
 
     """
-    update_gbk_cds_annotation.py -g $dfast_gbk -a $pvog -o t1.gbk -d pVOG
+    update_gbk_cds_annotation.py -g $original_gbk -a $pvog -o t1.gbk -d pVOG
     update_gbk_cds_annotation.py -g t1.gbk -a $vogdb -o t2.gbk -d VOGDB
     update_gbk_cds_annotation.py -g t2.gbk -a $pfam -o t3.gbk -d PFAM
     update_gbk_cds_annotation.py -g t3.gbk -a $kegg -o t4.gbk -d KEGG
@@ -226,7 +226,9 @@ process update_gbk_prophage {
     params.mode == 'genome' || params.mode == "all"
 
     """
-    awk 'FNR==1{}{print}' $tsv_phispy $tsv_phigaro > prophages.tsv
+    awk 'FNR==1{}{print}' $tsv_phispy $tsv_phigaro > predicted_prophages.tsv
+    merge_prophage_overlapping.py -i predicted_prophages.tsv -o merged_prophages.tsv
+    cat predicted_prophages.tsv merged_prophages.tsv > prophages.tsv
     old_prophage="${params.datadir}/${sampleID}${params.old_prophage_ext}"
     if [ -e \${old_prophage} ];then
         if [[ "$params.old_prophage_ext" = "_old.gbk" ]];then
@@ -258,7 +260,9 @@ process extract_prophages {
     params.mode == 'genome' || params.mode == "all"
 
     """
-    extract_prophages.py -s $sampleID -g $prophages -f $params.flank_len -o ${sampleID}_prophages -p misc_feature
+    extract_prophages.py -g $prophages -o ${sampleID}_prophages_all_flank -p misc_feature -t total -l $params.flank_len
+    extract_prophages.py -g $prophages -o ${sampleID}_prophages_merged_flank -p misc_feature -t merged -l $params.flank_len
+    extract_prophages.py -g $prophages -o ${sampleID}_prophages -p misc_feature -t merged -l 0
     """
 }
 

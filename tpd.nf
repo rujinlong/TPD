@@ -255,7 +255,9 @@ process update_gbk_prophage {
     params.mode == 'genome' || params.mode == "all"
 
     """
-    awk 'FNR==1{}{print}' $tsv_phispy $tsv_phigaro > prophages.tsv
+    awk 'FNR==1{}{print}' $tsv_phispy $tsv_phigaro > predicted_prophages.tsv
+    merge_prophage_overlapping.py -i predicted_prophages.tsv -o merged_prophages.tsv
+    cat predicted_prophages.tsv merged_prophages.tsv > prophages.tsv
     old_prophage="${params.datadir}/${sampleID}${params.old_prophage_ext}"
     if [ -e \${old_prophage} ];then
         if [[ "$params.old_prophage_ext" = "_old.gbk" ]];then
@@ -286,7 +288,9 @@ process extract_prophages {
     params.mode == 'genome' || params.mode == "all"
 
     """
-    extract_prophages.py -s $sampleID -g $prophages -f $params.flank_len -o ${sampleID}_prophages -p misc_feature
+    extract_prophages.py -g $prophages -o ${sampleID}_prophages_all_flank -p misc_feature -t total -l $params.flank_len
+    extract_prophages.py -g $prophages -o ${sampleID}_prophages_merged_flank -p misc_feature -t merged -l $params.flank_len
+    extract_prophages.py -g $prophages -o ${sampleID}_prophages -p misc_feature -t merged -l 0
     """
 }
 

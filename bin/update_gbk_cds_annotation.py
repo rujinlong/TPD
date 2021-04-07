@@ -59,7 +59,7 @@ def main(gbk, annotation, db, fout):
             annotation_dict = reformat_abricate(df)
             for genome_region in records:
                 genome_region = update_abricate(genome_region, annotation_dict)
-        else:  # "VOGDB|pVOG|PFAM|KEGG"
+        else:  # "VOGDB|pVOG|PFAM|KEGG|kofamscan"
             clms = list(df.columns)
             clms.remove('protid')
             df['anno'] = df.apply(lambda x:'~~'.join(x[clms]), axis=1)
