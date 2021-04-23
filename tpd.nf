@@ -18,7 +18,7 @@ process run_RagTag {
     tuple val(sampleID), path('*.stats') 
 
     when:
-    params.mode == "all"
+    params.mode == "all"|| params.mode == 'genome'
 
     """
     rawseqs="${baseDir}/data/${sampleID}_scaffolds.fna"
@@ -216,6 +216,28 @@ process predict_prophage_phigaro {
     """
 }
 
+process predict_prophage_phageboost {
+    tag "$sampleID"
+    label "small"
+    publishDir "$params.outdir/$sampleID/p04_prophage_phageboost"
+
+    input:
+    tuple val(sampleID), path(genome)
+
+    output:
+    path("phageboost_results/*")
+    tuple val(sampleID), path("prophage_phageboost.tsv"), emit: phageboost_tsv
+
+    when:
+    params.mode == 'genome' || params.mode == "all"
+
+    """
+    PhageBoost -f $genome -o phageboost_results
+    grep -v '^#' phageboost_results/phages_*.gff | cut -f1,4,5 | sed 's/n_genes.*=//' > tmp2.tsv
+    add_column.py -i tmp2.tsv -m phageboost -o prophage_phageboost.tsv
+    """
+}
+
 process update_gbk_cds_annotation {
     tag "$sampleID"
     label "small"
@@ -228,7 +250,7 @@ process update_gbk_cds_annotation {
     tuple val(sampleID), path("${sampleID}_cds_anno.gbk"), emit: update_prophage
 
     when:
-    params.mode == 'genome' || params.mode == "all"
+    params.mode == "all"
 
     """
     update_gbk_cds_annotation.py -g $dfast_gbk -a $pvog -o t1.gbk -d pVOG
@@ -245,17 +267,17 @@ process update_gbk_prophage {
     publishDir "$params.report/$sampleID", pattern: "*.gbk"
 
     input:
-    tuple val(sampleID), path(gbk), path(tsv_phispy), path(tsv_phigaro)
+    tuple val(sampleID), path(gbk), path(tsv_phispy), path(tsv_phigaro), path(tsv_phageboost)
 
     output:
     tuple val(sampleID), path("${sampleID}_long.gbk"), emit: prophages_ch
     tuple val(sampleID), path("${sampleID}.gbk")
 
     when:
-    params.mode == 'genome' || params.mode == "all"
+    params.mode == "all"
 
     """
-    awk 'FNR==1{}{print}' $tsv_phispy $tsv_phigaro > predicted_prophages.tsv
+    awk 'FNR==1{}{print}' $tsv_phispy $tsv_phigaro $tsv_phageboost > predicted_prophages.tsv
     merge_prophage_overlapping.py -i predicted_prophages.tsv -o merged_prophages.tsv
     cat predicted_prophages.tsv merged_prophages.tsv > prophages.tsv
     old_prophage="${params.datadir}/${sampleID}${params.old_prophage_ext}"
@@ -285,7 +307,7 @@ process extract_prophages {
     path("${sampleID}_prophages.*")
 
     when:
-    params.mode == 'genome' || params.mode == "all"
+    params.mode == "all"
 
     """
     extract_prophages.py -g $prophages -o ${sampleID}_prophages_all_flank -p misc_feature -t total -l $params.flank_len
@@ -306,7 +328,7 @@ process predict_CRISPR {
     path("${sampleID}_CRISPR_*")
 
     when:
-    params.mode == 'genome' || params.mode == "all"
+    params.mode == "all"
 
     """
     crt crt $draft_genome_fna ${sampleID}_CRISPR_CRT.txt
@@ -318,7 +340,9 @@ process predict_CRISPR {
 workflow {
     data = "${params.datadir}/*_*"
     sampleIDs = channel.fromPath(data).map { it.toString().split("/")[-1].split("_")[0] }.unique()
+    sampleIDs.view()
     ref_fna = channel.fromPath(params.ref_fna)
+    ref_fna.view()
     ref_gbk = channel.fromPath(params.ref_gbk)
     run_RagTag(sampleIDs.combine(ref_fna))
     run_dfast(run_RagTag.out.genome_ch.combine(ref_gbk))
@@ -331,9 +355,10 @@ workflow {
 
     predict_prophage_phispy(run_dfast.out.draft_gbk)
     predict_prophage_phigaro(run_dfast.out.draft_genome_fna)
+    predict_prophage_phageboost(run_dfast.out.draft_genome_fna)
 
     update_gbk_cds_annotation(run_dfast.out.draft_gbk.join(viral_annotation_pVOG.out.vanno_pvog, by:0).join(viral_annotation_VOGDB.out.vanno_vogdb, by:0).join(viral_annotation_PFAM.out.vanno_pfam, by:0).join(viral_annotation_KEGG.out.vanno_kegg, by:0).join(cds_anno_ARG.out.arg2update, by:0))
-    update_gbk_prophage(update_gbk_cds_annotation.out.update_prophage.join(predict_prophage_phispy.out.phispy_tsv, by:0).join(predict_prophage_phigaro.out.phigaro_tsv, by:0))
+    update_gbk_prophage(update_gbk_cds_annotation.out.update_prophage.join(predict_prophage_phispy.out.phispy_tsv, by:0).join(predict_prophage_phigaro.out.phigaro_tsv, by:0).join(predict_prophage_phageboost.out.phageboost_tsv, by:0))
 
     extract_prophages(update_gbk_prophage.out.prophages_ch)
     predict_CRISPR(run_dfast.out.draft_genome_fna)
