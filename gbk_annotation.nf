@@ -254,7 +254,7 @@ process extract_prophages {
     tuple val(sampleID), path(prophages)
 
     output:
-    path("${sampleID}_prophages.*")
+    path("${sampleID}_prophages*")
 
     when:
     params.mode == 'genome' || params.mode == "all"
