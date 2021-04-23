@@ -340,9 +340,7 @@ process predict_CRISPR {
 workflow {
     data = "${params.datadir}/*_*"
     sampleIDs = channel.fromPath(data).map { it.toString().split("/")[-1].split("_")[0] }.unique()
-    sampleIDs.view()
     ref_fna = channel.fromPath(params.ref_fna)
-    ref_fna.view()
     ref_gbk = channel.fromPath(params.ref_gbk)
     run_RagTag(sampleIDs.combine(ref_fna))
     run_dfast(run_RagTag.out.genome_ch.combine(ref_gbk))
