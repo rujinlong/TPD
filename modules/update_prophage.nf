@@ -1,21 +1,21 @@
 process update_gbk_prophage {
     tag "$sampleID"
     label "small"
-    publishDir "$params.outdir/$sampleID/p05_update_gbk_prophage"
+    publishDir "$params.outdir/$sampleID/p06_update_gbk_prophage"
     publishDir "$params.report/$sampleID", pattern: "*.gbk"
 
     input:
-    tuple val(sampleID), path(gbk), path(tsv_phispy), path(tsv_phigaro)
+    tuple val(sampleID), path(gbk), path(tsv_phispy), path(tsv_phigaro), path(tsv_phageboost)
 
     output:
     tuple val(sampleID), path("${sampleID}_long.gbk"), emit: prophages_ch
     tuple val(sampleID), path("${sampleID}.gbk")
 
     when:
-    params.mode == 'genome' || params.mode == "all"
+    params.mode == "all"
 
     """
-    awk 'FNR==1{}{print}' $tsv_phispy $tsv_phigaro > predicted_prophages.tsv
+    awk 'FNR==1{}{print}' $tsv_phispy $tsv_phigaro $tsv_phageboost > predicted_prophages.tsv
     merge_prophage_overlapping.py -i predicted_prophages.tsv -o merged_prophages.tsv
     cat predicted_prophages.tsv merged_prophages.tsv > prophages.tsv
     old_prophage="${params.datadir}/${sampleID}${params.old_prophage_ext}"
