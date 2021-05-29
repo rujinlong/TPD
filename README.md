@@ -1,6 +1,6 @@
 # TPD
 TPD: A Computational Pipeline for Therapeutic Phage Discovery from Prophages
-# my
+
 # Install
 
 ```sh
@@ -20,5 +20,7 @@ If you want to add previous predicted prophages, put `${sampleID}_old.gbk` in `d
 ## `gbk_annotation.nf`
 
 ![](./imgs/flowchart_gbk_annotation.png)
+
+# TODO
 
 
