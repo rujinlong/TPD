@@ -1,5 +1,5 @@
 #!/usr/bin/env nextflow
-// Usage: nextflow run predict_prophages.nf -profile hpc_slurm --mode "all" --datadir data -resume
+// Usage: nextflow run predict_prophages.nf -profile hpc_slurm --datadir "$(pwd)/genomes" -resume
 
 nextflow.enable.dsl=2
 

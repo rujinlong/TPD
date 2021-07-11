@@ -1,6 +1,5 @@
 process predict_prophage_phageboost {
     tag "$sampleID"
-    label "small"
     publishDir "$params.outdir/$sampleID/p04_prophage_phageboost"
 
     input:
