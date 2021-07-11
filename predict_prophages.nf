@@ -1,5 +1,5 @@
 #!/usr/bin/env nextflow
-// Usage: nextflow run extract_prophages.nf -profile hpc_slurm --mode "all" --datadir data -resume
+// Usage: nextflow run predict_prophages.nf -profile hpc_slurm --mode "all" --datadir data -resume
 
 nextflow.enable.dsl=2
 
@@ -23,8 +23,8 @@ workflow {
     genomes_ch = channel.fromPath(genomes).map { [it.toString().split("/")[-1].replaceAll(/.fna$/, ""), it] }.unique()
     DFAST(genomes_ch)
     predict_prophage_phispy(DFAST.out.draft_gbk)
-    predict_prophage_phigaro(genomes_ch)
-    predict_prophage_phageboost(genomes_ch)
+    predict_prophage_phigaro(DFAST.out.draft_genome_fna)
+    predict_prophage_phageboost(DFAST.out.draft_genome_fna)
     update_gbk_prophage(DFAST.out.draft_gbk.join(predict_prophage_phispy.out.phispy_tsv, by:0).join(predict_prophage_phigaro.out.phigaro_tsv, by:0).join(predict_prophage_phageboost.out.phageboost_tsv, by:0))
     extract_prophages(update_gbk_prophage.out.prophages_ch)
 }

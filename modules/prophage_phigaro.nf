@@ -1,6 +1,6 @@
 process predict_prophage_phigaro {
     tag "$sampleID"
-    label "big"
+    label "small"
     publishDir "$params.outdir/$sampleID/p03_prophage_phigaro"
 
     input:

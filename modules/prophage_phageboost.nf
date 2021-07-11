@@ -14,7 +14,8 @@ process predict_prophage_phageboost {
     params.mode == 'genome' || params.mode == "all"
 
     """
-    PhageBoost -f $genome -o phageboost_results
+    seqkit seq -m 20000 $genome > genome20k.fna
+    PhageBoost -f genome20k.fna -o phageboost_results
     grep -v '^#' phageboost_results/phages_*.gff | cut -f1,4,5 | sed 's/n_genes.*=//' > tmp2.tsv
     add_column.py -i tmp2.tsv -m phageboost -o prophage_phageboost.tsv
     """
