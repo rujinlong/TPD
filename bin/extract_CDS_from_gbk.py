@@ -4,7 +4,7 @@ import click
 from Bio import SeqIO, SeqRecord, Seq
 
 
-def extract_CDSs(gbks, fout_DNA, fout_AA):
+def extract_CDSs(gbks, fout_DNA, fout_AA, feature_prefix):
     cds_DNAs = []
     cds_AAs = []
     for gbk in gbks:
@@ -15,11 +15,11 @@ def extract_CDSs(gbks, fout_DNA, fout_AA):
             protein_seq = cds_feature.qualifiers.get('translation')
             if protein_seq:
                 protein_seq = protein_seq[0]
-                cds_AA = SeqRecord.SeqRecord(seq=Seq.Seq(protein_seq), id=locus_tag, description="")
+                cds_AA = SeqRecord.SeqRecord(seq=Seq.Seq(protein_seq), id="{}{}".format(feature_prefix, locus_tag), description="")
                 cds_AAs.append(cds_AA)
             
                 cds_DNA =  cds_feature.location.extract(gbk)
-                cds_DNA.id=locus_tag
+                cds_DNA.id="{}{}".format(feature_prefix, locus_tag)
                 cds_DNA.description = ""
                 cds_DNAs.append(cds_DNA)
         
@@ -38,7 +38,8 @@ def extract_genome(gbks, fout):
 @click.command()
 @click.option("--fgbk", '-i', help="Genbank file")
 @click.option("--fout_prefix", '-o', help="Genbank file")
-def main(fgbk, fout_prefix):
+@click.option("--feature_prefix", '-p', default="", required=False, help="Genbank file")
+def main(fgbk, fout_prefix, feature_prefix):
     gbks = list(SeqIO.parse(fgbk, format="genbank"))
 
     # Output
@@ -47,7 +48,7 @@ def main(fgbk, fout_prefix):
     fout_cds_AA = "{}_protein.faa".format(fout_prefix)
 
     extract_genome(gbks, fout_genome)
-    extract_CDSs(gbks, fout_cds_DNA, fout_cds_AA)
+    extract_CDSs(gbks, fout_cds_DNA, fout_cds_AA, feature_prefix)
 
 
 if __name__ == '__main__':
