@@ -1,5 +1,6 @@
-# TPD
-TPD: A Computational Pipeline for Therapeutic Phage Discovery from Prophages
+# TPD: A Computational Pipeline for Therapeutic Phage Discovery from Prophages
+
+[![DOI](https://zenodo.org/badge/326435779.svg)](https://zenodo.org/badge/latestdoi/326435779)
 
 # Install
 
