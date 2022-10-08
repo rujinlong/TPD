@@ -21,6 +21,8 @@ include { extract_prophages } from './modules/extract_prophage'
 workflow {
     genomes = "${params.datadir}/*.fna"
     genomes_ch = channel.fromPath(genomes).map { [it.toString().split("/")[-1].replaceAll(/.fna$/, ""), it] }.unique()
+    println "genomes: ${genomes}"
+
     DFAST(genomes_ch)
     predict_prophage_phispy(DFAST.out.draft_gbk)
     predict_prophage_phigaro(DFAST.out.draft_genome_fna)
