@@ -4,6 +4,7 @@
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
+include { extract_seqs_from_gbk } from '../modules/base'
 include { viral_annotation_VOGDB; viral_annotation_pVOG; viral_annotation_PFAM; viral_annotation_KEGG; cds_anno_ARG } from '../modules/anno_prot'
 include { predict_CRISPR } from '../modules/anno_genome'
 include { predict_prophage_phispy; predict_prophage_phigaro; predict_prophage_phageboost; extract_prophages } from '../modules/prophage_miner'

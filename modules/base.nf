@@ -1,4 +1,5 @@
 process extract_seqs_from_gbk {
+    label "tpd_base"
     tag "$sampleID"
     publishDir "$params.outdir/$sampleID/p01_extract_seqs"
     publishDir "$params.report/$sampleID", pattern: "${sampleID}_*"
@@ -12,7 +13,7 @@ process extract_seqs_from_gbk {
     tuple val(sampleID), path("${sampleID}_protein.faa"), emit: protein_ch
 
     when:
-    params.mode == "all"
+    task.ext.when == null || task.ext.when
 
     """
     extract_CDS_from_gbk.py -i $gbk -o $sampleID
