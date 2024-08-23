@@ -362,5 +362,3 @@ workflow {
     predict_CRISPR(run_dfast.out.draft_genome_fna)
 }
 
-
-
