@@ -16,3 +16,6 @@ dependencies:
     - pigz
     - unzip
     - pymummer
+    - hmmer
+    - dfast
+    - russel88::cctyper

@@ -33,6 +33,7 @@ WorkflowMain.initialise(workflow, params, log)
 */
 
 include { TPD } from './workflows/tpd'
+include { GBKANNOTATION } from './workflows/gbk_annotation'
 
 
 /*
@@ -45,7 +46,7 @@ include { TPD } from './workflows/tpd'
 // WORKFLOW: Run main deng-lab/TPD analysis pipeline
 //
 workflow {
-    TPD ()
+    GBKANNOTATION ()
 }
 
 /*
