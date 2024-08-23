@@ -10,10 +10,10 @@ ARG MAMBA_DOCKERFILE_ACTIVATE=1
 ENV PATH=/opt/conda/bin:$PATH
 
 # Copy conda env files
-COPY ./docker/tpd-base/env*.yml /tmp
+COPY ./docker/tpd-base/envs*.yml /tmp
 
 # Install packages
-RUN --mount=type=cache,target=/opt/conda/pkgs micromamba install -n base -f /tmp/env-base.yml -y
+RUN --mount=type=cache,target=/opt/conda/pkgs micromamba install -n base -f /tmp/envs-base.yml -y
 
 # clean
 RUN micromamba clean --all --yes
