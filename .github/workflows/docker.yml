@@ -14,7 +14,7 @@ jobs:
       matrix:
         include:
           - dockerfile: ./docker/tpd-base/Dockerfile
-            image: denglab/tpd-base
+            image: jinlongru/tpd-base
     permissions:
       contents: read
       packages: write
